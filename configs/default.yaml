@@ -1,0 +1,50 @@
+# configs/default.yaml
+# All experiment knobs in one place.
+# Override any value via CLI arguments in the scripts.
+
+# ── Models ────────────────────────────────────────────────────────────────────
+clip_model_id: "openai/clip-vit-base-patch32"
+dino_model_id: "facebook/dinov2-base"
+qwen_model_id: "Qwen/Qwen2.5-VL-7B-Instruct"
+
+# ── Gallery / few-shot settings ───────────────────────────────────────────────
+k_shot: 4               # support images per class
+n_ref_classes: 3        # confusable reference classes for CDV Stage 1
+seed: 42
+
+# ── CDV Captioner ─────────────────────────────────────────────────────────────
+fast_cdv: false         # true = single-prompt (~4s/img), false = 3-stage (~10s/img)
+
+# ── Fusion weights [clip_vis, dino_vis, cdv_text] ────────────────────────────
+fusion_weights: [1.0, 1.0, 1.0]
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+n_test_per_class: 3     # test images per class
+checkpoint_every: 50    # save gallery checkpoint every N images
+
+# ── Ablation modes to run ─────────────────────────────────────────────────────
+# clip_only  : CLIP visual only (512-dim)         — paper baseline
+# clip_cdv   : CLIP visual + CDV text (1024-dim)  — paper full method
+# clip_dino  : CLIP + DINOv2 visual (1280-dim)    — visual extension
+# full       : CLIP + DINOv2 + CDV text (1792-dim)— full method
+ablation_modes:
+  - clip_only
+  - clip_cdv
+  - clip_dino
+  - full
+
+# ── Datasets (set data_root per dataset before running) ──────────────────────
+datasets:
+  cub:
+    data_root: "/data/cub"
+    n_classes: 200
+  cars:
+    data_root: "/data/stanford_cars"
+  aircraft:
+    data_root: "/data/fgvc_aircraft"
+  pets:
+    data_root: "/data/oxford_pets"
+  dogs:
+    data_root: "/data/stanford_dogs"
+  food101:
+    data_root: "/data/food101"

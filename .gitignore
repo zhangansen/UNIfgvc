@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.pth
+*.pt
+results/
+*.json
+*.csv
+.env
+hf_cache/
+data/
