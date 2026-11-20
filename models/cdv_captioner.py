@@ -10,7 +10,7 @@ Drop-in replacement for the previous local Qwen2.5-VL version:
 Config (env-overridable):
     QWEN_VL_API_KEY          required (fallbacks: SILICONFLOW_API_KEY,
                              DASHSCOPE_API_KEY) — SiliconFlow default provider
-    QWEN_VL_MODEL            default "Qwen/Qwen2.5-VL-7B-Instruct"
+    QWEN_VL_MODEL            default "Qwen/Qwen3-VL-8B-Instruct"
     QWEN_VL_BASE_URL         default SiliconFlow OpenAI-compatible endpoint
     QWEN_MAX_IMAGE_SIDE      default 1024 (client-side resize before upload)
 """
@@ -23,7 +23,7 @@ from PIL import Image
 from openai import OpenAI
 
 # ── Configuration (env-overridable) ─────────────────────────────────────────
-QWEN_VL_MODEL       = os.environ.get("QWEN_VL_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+QWEN_VL_MODEL       = os.environ.get("QWEN_VL_MODEL", "Qwen/Qwen3-VL-8B-Instruct")
 QWEN_VL_BASE_URL    = os.environ.get(
     "QWEN_VL_BASE_URL",
     "https://api.siliconflow.cn/v1",

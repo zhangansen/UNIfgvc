@@ -53,6 +53,8 @@ export QWEN_VL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 export DASHSCOPE_API_KEY=sk-xxx
 ```
 
+**修正（2026-11-20 晚）**：硅基流动已**下架 Qwen2.5-VL 系列**（调用报 `400 code 20012 "Model does not exist"`），默认模型已从 `Qwen/Qwen2.5-VL-7B-Instruct` 改为 **`Qwen/Qwen3-VL-8B-Instruct`**（同档继任，Apache-2.0，256K 上下文，价格约 $0.18/$0.68 每百万 in/out）。需要更强描述可选 `Qwen/Qwen3-VL-32B-Instruct`（~¥1/M in）或 `Qwen/Qwen3-VL-235B-A22B-Instruct`；注意避开 `-Thinking` 后缀的变体（thinking 模型可能拒绝自定义 `temperature`，且输出混思维链不适合做 caption）。改动涉及：`models/cdv_captioner.py` 默认常量、`configs/default.yaml`、`README.md`。
+
 ---
 
 ## 1. 现状：VLM 在项目中的位置
@@ -465,7 +467,7 @@ load_qwen()
 img = Image.open(r'F:/path/to/some/test.jpg').convert('RGB')
 print(fast_cdv_caption(img))
 "
-# 预期：打印一段英文判别性描述；401=key 错，404=模型名错（用 Qwen/Qwen2.5-VL-7B-Instruct，注意斜杠）
+# 预期：打印一段英文判别性描述；401=key 错，404/20012=模型名错（当前默认 Qwen/Qwen3-VL-8B-Instruct，注意斜杠；Qwen2.5-VL 已在硅基下架）
 
 # 4) 小规模真实构建（选一个小数据集或先 --fast_cdv）
 python scripts/build_gallery.py --dataset pets --data_root <pets路径> \

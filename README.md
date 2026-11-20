@@ -32,7 +32,7 @@ This repo implements and extends a pipeline for fine-grained visual classificati
 
 - **CLIP ViT-B/32** — semantic visual features (512-dim)
 - **DINOv2-Base** — local texture / structure features (768-dim)
-- **Qwen2.5-VL-7B** via the **SiliconFlow API** (OpenAI-compatible) — CDV caption generation
+- **Qwen3-VL-8B** via the **SiliconFlow API** (OpenAI-compatible) — CDV caption generation
 
 ## Installation
 
@@ -51,7 +51,7 @@ Set your **SiliconFlow API key** (required — Qwen-VL runs as a cloud API):
 export QWEN_VL_API_KEY=sk-xxxxxxxx
 ```
 
-Create a key at [cloud.siliconflow.com/account/ak](https://cloud.siliconflow.com/account/ak). Defaults: model `Qwen/Qwen2.5-VL-7B-Instruct` on the SiliconFlow OpenAI-compatible endpoint (`https://api.siliconflow.cn/v1`). Switch provider or model with the `QWEN_VL_BASE_URL` / `QWEN_VL_MODEL` env vars (e.g. back to Alibaba DashScope with `qwen-vl-max-latest`) — no code changes needed.
+Create a key at [cloud.siliconflow.com/account/ak](https://cloud.siliconflow.com/account/ak). Defaults: model `Qwen/Qwen3-VL-8B-Instruct` on the SiliconFlow OpenAI-compatible endpoint (`https://api.siliconflow.cn/v1`). Switch provider or model with the `QWEN_VL_BASE_URL` / `QWEN_VL_MODEL` env vars (e.g. `Qwen/Qwen3-VL-32B-Instruct` for stronger captions, or back to Alibaba DashScope with `qwen-vl-max-latest`) — no code changes needed.
 
 > The Hugging Face token is now **optional** — it is only used to download the CLIP / DINOv2 encoders (not gated). If you are behind a restricted network, `export HF_TOKEN=hf_xxx` (from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)) still works with the same Kaggle-Secrets / env-var / `huggingface-cli login` resolution as before.
 
