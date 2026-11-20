@@ -32,7 +32,7 @@ This repo implements and extends a pipeline for fine-grained visual classificati
 
 - **CLIP ViT-B/32** — semantic visual features (512-dim)
 - **DINOv2-Base** — local texture / structure features (768-dim)
-- **Qwen2.5-VL-7B-Instruct** (4-bit) — CDV caption generation
+- **Qwen2.5-VL-7B** via the **SiliconFlow API** (OpenAI-compatible) — CDV caption generation
 
 ## Installation
 
@@ -42,21 +42,18 @@ cd unifgvc
 pip install -r requirements.txt
 ```
 
-Set your Hugging Face token (required for Qwen, which is a gated model):
+Set your **SiliconFlow API key** (required — Qwen-VL runs as a cloud API):
 
-**On Kaggle** — add `HF_TOKEN` to your [Kaggle Secrets](https://www.kaggle.com/settings) (Settings → API → Add Secret). The code picks it up automatically.
+**On Kaggle** — add `QWEN_VL_API_KEY` to your [Kaggle Secrets](https://www.kaggle.com/settings) (Settings → API → Add Secret). The code picks it up automatically.
 
-**Locally** — any of these work:
+**Locally** — set the environment variable:
 ```bash
-# Option A: environment variable
-export HF_TOKEN=hf_xxxxxxxxxxxx
-
-# Option B: huggingface-cli (persists across sessions)
-pip install huggingface_hub
-huggingface-cli login
+export QWEN_VL_API_KEY=sk-xxxxxxxx
 ```
 
-Get your token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). You also need to accept the Qwen2.5-VL model license at [huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct).
+Create a key at [cloud.siliconflow.com/account/ak](https://cloud.siliconflow.com/account/ak). Defaults: model `Qwen/Qwen2.5-VL-7B-Instruct` on the SiliconFlow OpenAI-compatible endpoint (`https://api.siliconflow.cn/v1`). Switch provider or model with the `QWEN_VL_BASE_URL` / `QWEN_VL_MODEL` env vars (e.g. back to Alibaba DashScope with `qwen-vl-max-latest`) — no code changes needed.
+
+> The Hugging Face token is now **optional** — it is only used to download the CLIP / DINOv2 encoders (not gated). If you are behind a restricted network, `export HF_TOKEN=hf_xxx` (from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)) still works with the same Kaggle-Secrets / env-var / `huggingface-cli login` resolution as before.
 
 ## Usage
 

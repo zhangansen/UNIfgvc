@@ -5,7 +5,12 @@
 # ── Models ────────────────────────────────────────────────────────────────────
 clip_model_id: "openai/clip-vit-base-patch32"
 dino_model_id: "facebook/dinov2-base"
-qwen_model_id: "Qwen/Qwen2.5-VL-7B-Instruct"
+qwen_model_id: "Qwen/Qwen2.5-VL-7B-Instruct"   # SiliconFlow model id (HF-style, note the slash)
+qwen_api_base: "https://api.siliconflow.cn/v1" # OpenAI-compatible; to switch back to
+                                               # DashScope use qwen-vl-max-latest +
+                                               # https://dashscope.aliyuncs.com/compatible-mode/v1
+qwen_api_key_env: "QWEN_VL_API_KEY"            # also accepts SILICONFLOW_API_KEY / DASHSCOPE_API_KEY
+qwen_max_image_side: 1024             # client-side resize before upload
 
 # ── Gallery / few-shot settings ───────────────────────────────────────────────
 k_shot: 4               # support images per class

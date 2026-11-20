@@ -1,10 +1,6 @@
 __pycache__/
-*.py[cod]
-*.pth
-*.pt
+*.pyc
 results/
-*.json
-*.csv
-.env
-hf_cache/
-data/
+*.pt
+.ipynb_checkpoints/
+.pytest_cache/

@@ -28,7 +28,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils     import setup_hf_token
+from utils     import setup_hf_token, setup_vlm_api_key
 from datasets  import get_dataset
 from models    import load_encoders, load_qwen
 from gallery   import build_gallery
@@ -58,6 +58,7 @@ def parse_args():
 def main():
     args = parse_args()
     setup_hf_token()
+    setup_vlm_api_key()
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
 
     # ── Load dataset ──────────────────────────────────────────────────────────

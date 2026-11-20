@@ -1,18 +1,36 @@
 """
-models/cdv_captioner.py — 3-stage CDV captioner using Qwen2.5-VL.
+models/cdv_captioner.py — 3-stage CDV captioner using the Qwen-VL API
+(DashScope, OpenAI-compatible mode).
+
+Drop-in replacement for the previous local Qwen2.5-VL version:
+  • stage1..3 / fast_cdv_caption / full_cdv_caption keep identical
+    prompts and signatures — gallery/builder.py and eval/ need no change.
+  • load_qwen() now initialises the API client instead of loading weights.
+
+Config (env-overridable):
+    QWEN_VL_API_KEY          required (fallbacks: SILICONFLOW_API_KEY,
+                             DASHSCOPE_API_KEY) — SiliconFlow default provider
+    QWEN_VL_MODEL            default "Qwen/Qwen2.5-VL-7B-Instruct"
+    QWEN_VL_BASE_URL         default SiliconFlow OpenAI-compatible endpoint
+    QWEN_MAX_IMAGE_SIDE      default 1024 (client-side resize before upload)
 """
 
-import torch
+import base64
+import io
+import os
+
 from PIL import Image
-from transformers import (
-    Qwen2_5_VLForConditionalGeneration, AutoProcessor, BitsAndBytesConfig
+from openai import OpenAI
+
+# ── Configuration (env-overridable) ─────────────────────────────────────────
+QWEN_VL_MODEL       = os.environ.get("QWEN_VL_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+QWEN_VL_BASE_URL    = os.environ.get(
+    "QWEN_VL_BASE_URL",
+    "https://api.siliconflow.cn/v1",
 )
-from qwen_vl_utils import process_vision_info
+QWEN_MAX_IMAGE_SIDE = int(os.environ.get("QWEN_MAX_IMAGE_SIDE", "1024"))
 
-QWEN_MODEL_ID = "Qwen/Qwen2.5-VL-7B-Instruct"
-
-_qwen_model     = None
-_qwen_processor = None
+_client: OpenAI | None = None
 
 _SYS_PROMPT = (
     "You are an expert visual analyst specialising in fine-grained image classification. "
@@ -21,42 +39,82 @@ _SYS_PROMPT = (
 )
 
 
-def load_qwen(model_id: str = QWEN_MODEL_ID):
-    global _qwen_model, _qwen_processor
-    if _qwen_model is not None:
+def load_qwen(model_id: str = QWEN_VL_MODEL):
+    """Initialise the Qwen-VL API client (replaces local weight loading)."""
+    global _client, QWEN_VL_MODEL
+    if _client is not None:
         return
-    bnb_cfg = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
+    api_key = (os.environ.get("QWEN_VL_API_KEY")
+               or os.environ.get("SILICONFLOW_API_KEY")
+               or os.environ.get("DASHSCOPE_API_KEY"))
+    if not api_key:
+        raise EnvironmentError(
+            "\n\nNo Qwen-VL API key found. Set ONE of these env vars:\n"
+            "  QWEN_VL_API_KEY / SILICONFLOW_API_KEY   (SiliconFlow, default provider)\n"
+            "    -> create at https://cloud.siliconflow.com/account/ak\n"
+            "  DASHSCOPE_API_KEY                       (Alibaba DashScope)\n"
+            "    -> create at https://bailian.console.aliyun.com/\n"
+        )
+    QWEN_VL_MODEL = model_id
+    _client = OpenAI(
+        api_key=api_key,
+        base_url=QWEN_VL_BASE_URL,
+        timeout=120,       # seconds per request (multi-image Stage 1 can be slow)
+        max_retries=5,     # SDK auto-retries 429 / 5xx / connection errors
     )
-    _qwen_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        model_id, quantization_config=bnb_cfg, device_map="auto"
-    ).eval()
-    _qwen_processor = AutoProcessor.from_pretrained(model_id)
-    print(f"Qwen2.5-VL ({model_id}) loaded in 4-bit")
+    print(f"Qwen-VL API client ready | model={model_id} | base={QWEN_VL_BASE_URL}")
+
+
+def _pil_to_data_uri(img: Image.Image,
+                     max_side: int = QWEN_MAX_IMAGE_SIDE) -> str:
+    """Encode a PIL image as a base64 JPEG data URI.
+
+    Client-side resize keeps the upload small; the service re-tokenises
+    anyway. <=1024px is roughly 1-1.5k vision tokens per image.
+    """
+    if max(img.size) > max_side:
+        scale = max_side / max(img.size)
+        img = img.resize((round(img.width * scale),
+                          round(img.height * scale)), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=90)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def _convert_content(content):
+    """Translate qwen_vl_utils-style content into OpenAI-compatible parts."""
+    out = []
+    for part in content:
+        if isinstance(part, str):
+            out.append({"type": "text", "text": part})
+        elif part.get("type") == "image":
+            img = part["image"]
+            uri = img if isinstance(img, str) else _pil_to_data_uri(img)
+            out.append({"type": "image_url", "image_url": {"url": uri}})
+        else:
+            out.append(part)
+    return out
 
 
 def _run_qwen(messages: list, max_new_tokens: int = 256) -> str:
-    text = _qwen_processor.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
+    if _client is None:
+        raise RuntimeError("Call load_qwen() before using the captioner.")
+    api_messages = [
+        {"role": m["role"],
+         "content": _convert_content(m["content"])
+                    if isinstance(m["content"], list) else m["content"]}
+        for m in messages
+    ]
+    resp = _client.chat.completions.create(
+        model=QWEN_VL_MODEL,
+        messages=api_messages,
+        max_tokens=max_new_tokens,
+        # Deterministic captions (was do_sample=False).
+        # If a newer model rejects these with HTTP 400, remove them.
+        temperature=0.0,
+        top_p=1.0,
     )
-    image_inputs, video_inputs = process_vision_info(messages)
-    kwargs = dict(text=[text], padding=True, return_tensors="pt")
-    if image_inputs:
-        kwargs["images"] = image_inputs
-    if video_inputs:
-        kwargs["videos"] = video_inputs
-    inputs = _qwen_processor(**kwargs).to(_qwen_model.device)
-    with torch.no_grad():
-        gen_ids = _qwen_model.generate(
-            **inputs, max_new_tokens=max_new_tokens, do_sample=False
-        )
-    trimmed = [o[len(i):] for i, o in zip(inputs.input_ids, gen_ids)]
-    return _qwen_processor.batch_decode(
-        trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-    )[0].strip()
+    return (resp.choices[0].message.content or "").strip()
 
 
 # ── Stage 1: Discriminative Region Discovery ──────────────────────────────────
@@ -130,7 +188,7 @@ def fast_cdv_caption(target_img: Image.Image) -> str:
     ], max_new_tokens=256)
 
 
-# ── Full 3-stage orchestrator ─────────────────────────────────────────────────
+# ── Full 3-stage orchestrator ────────────────────────────────────────────────
 def full_cdv_caption(
     target_img: Image.Image,
     class_name: str,
@@ -141,8 +199,8 @@ def full_cdv_caption(
     """
     Returns the final discriminative CDV paragraph.
 
-    fast=True  → single-prompt fallback (~4s/image)
-    fast=False → full 3-stage pipeline (~10s/image)
+    fast=True  → single-prompt fallback (1 API call/image)
+    fast=False → full 3-stage pipeline (3 API calls/image)
     """
     if fast:
         return fast_cdv_caption(target_img)
